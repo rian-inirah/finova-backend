@@ -24,23 +24,23 @@ app.use(
 );
 
 // -----------------
-// CORS configuration (FIXED)
+// CORS configuration (PRODUCTION READY)
 // -----------------
 app.use(
   cors({
     origin: [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://legendary-lily-29b929.netlify.app'
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://finova-frontend-swart.vercel.app"
     ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
-// ✅ Handle preflight requests properly
-app.options('*', cors());
+// Handle preflight requests
+app.options("*", cors());
 
 // -----------------
 // Body parsing
@@ -89,13 +89,13 @@ app.use('*', (req, res) => {
 // Global error handler
 // -----------------
 app.use((error, req, res, next) => {
-  console.error('Global error handler:', error);
+  console.error('Global error:', error);
 
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDev = process.env.NODE_ENV === 'development';
 
   res.status(error.status || 500).json({
     error: error.message || 'Internal server error',
-    ...(isDevelopment && { stack: error.stack })
+    ...(isDev && { stack: error.stack })
   });
 });
 
@@ -107,31 +107,29 @@ const startServer = async () => {
     await db.sequelize.authenticate();
     console.log('✅ Database connected');
 
-    if (process.env.NODE_ENV === 'development') {
-      await db.sequelize.sync({ alter: true });
-      console.log('✅ DB synced');
-    }
+    // Safe sync for deployment
+    await db.sequelize.sync();
+
+    console.log('✅ Database synced');
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🔗 Health: http://localhost:${PORT}/health`);
+      console.log(`🔗 Health check: /health`);
     });
 
   } catch (error) {
-    console.error('❌ Server failed to start:', error);
+    console.error('❌ Server failed:', error);
     process.exit(1);
   }
 };
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received');
   await db.sequelize.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('SIGINT received');
   await db.sequelize.close();
   process.exit(0);
 });
