@@ -18,14 +18,13 @@ const sequelize = new Sequelize(
     pool: config.pool,
 
     // ✅ Only enable SSL in production (e.g., Railway)
-    dialectOptions: isProduction
-      ? {
-          ssl: {
-            require: true,
-            rejectUnauthorized: false,
-          },
-        }
-      : {},
+    dialectOptions: {
+  ssl: {
+    require: true,
+    rejectUnauthorized: false,
+  },
+},
+   
   }
 );
 
