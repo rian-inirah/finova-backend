@@ -1,70 +1,85 @@
 module.exports = (sequelize, DataTypes) => {
-  const User = sequelize.define('User', {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
-    username: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      unique: true,
-      validate: {
-        notEmpty: true,
-        len: [3, 50]
-      }
-    },
-    password: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-      validate: {
-        notEmpty: true
-      }
-    },
-    role: {
-      type: DataTypes.ENUM('admin', 'operator'),
-      defaultValue: 'operator',
-      allowNull: false
-    },
-    isActive: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
-      allowNull: false
-    }
-  }, {
-    tableName: 'users',
-    timestamps: true,
-    paranoid: true, // Soft delete
-    hooks: {
-      beforeCreate: async (user) => {
-        if (user.password) {
-          const bcrypt = require('bcryptjs');
-          user.password = await bcrypt.hash(user.password, 10);
-        }
-      },
-      beforeUpdate: async (user) => {
-        if (user.changed('password')) {
-          const bcrypt = require('bcryptjs');
-          user.password = await bcrypt.hash(user.password, 10);
-        }
-      }
-    }
-  });
+  const bcrypt = require("bcryptjs");
 
+  const User = sequelize.define(
+    "User",
+    {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+
+      username: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        unique: true,
+        validate: {
+          notEmpty: true,
+          len: [3, 50],
+        },
+      },
+
+      password: {
+        type: DataTypes.STRING(255), // IMPORTANT: must be 255
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+        },
+      },
+
+      role: {
+        type: DataTypes.ENUM("admin", "operator"),
+        defaultValue: "operator",
+        allowNull: false,
+      },
+
+      isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false,
+      },
+    },
+    {
+      tableName: "users",
+      timestamps: true,
+      paranoid: true,
+
+      hooks: {
+        // ✅ FIXED: Avoid double hashing
+        beforeCreate: async (user) => {
+          if (user.password && !user.password.startsWith("$2b$")) {
+            user.password = await bcrypt.hash(user.password, 10);
+          }
+        },
+
+        beforeUpdate: async (user) => {
+          if (
+            user.changed("password") &&
+            !user.password.startsWith("$2b$")
+          ) {
+            user.password = await bcrypt.hash(user.password, 10);
+          }
+        },
+      },
+    }
+  );
+
+  // Associations
   User.associate = (models) => {
     User.hasOne(models.BusinessDetails, {
-      foreignKey: 'userId',
-      as: 'businessDetails'
+      foreignKey: "userId",
+      as: "businessDetails",
     });
 
     User.hasMany(models.Item, {
-      foreignKey: 'userId',
-      as: 'items'
+      foreignKey: "userId",
+      as: "items",
     });
 
     User.hasMany(models.Order, {
-      foreignKey: 'userId',
-      as: 'orders'
+      foreignKey: "userId",
+      as: "orders",
     });
   };
 
