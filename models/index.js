@@ -1,11 +1,6 @@
 const { Sequelize, DataTypes } = require('sequelize');
-const env = process.env.NODE_ENV || 'development';
-const config = require('../config/database')[env];
 
-const isProduction = env === 'production';
-
-const { Sequelize, DataTypes } = require('sequelize');
-
+// Use DATABASE_URL in production (Render)
 const sequelize = process.env.DATABASE_URL
   ? new Sequelize(process.env.DATABASE_URL, {
       dialect: 'postgres',
@@ -18,12 +13,10 @@ const sequelize = process.env.DATABASE_URL
         },
       },
     })
-  : new Sequelize(
-      config.database,
-      config.username,
-      config.password,
-      config
-    );
+  : new Sequelize('your_db', 'your_user', 'your_password', {
+      host: 'localhost',
+      dialect: 'postgres',
+    });
 
 // Initialize DB object
 const db = {};
