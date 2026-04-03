@@ -4,27 +4,26 @@ const config = require('../config/database')[env];
 
 const isProduction = env === 'production';
 
-const sequelize = new Sequelize(
-  config.database,
-  config.username,
-  config.password,
-  {
-    host: config.host,
-    port: config.port,
-    dialect: config.dialect,
-    logging: config.logging,
-    pool: config.pool,
+const { Sequelize, DataTypes } = require('sequelize');
 
-    dialectOptions: isProduction
-      ? {
-          ssl: {
-            require: true,
-            rejectUnauthorized: false,
-          },
-        }
-      : {},
-  }
-);
+const sequelize = process.env.DATABASE_URL
+  ? new Sequelize(process.env.DATABASE_URL, {
+      dialect: 'postgres',
+      protocol: 'postgres',
+      logging: false,
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      },
+    })
+  : new Sequelize(
+      config.database,
+      config.username,
+      config.password,
+      config
+    );
 
 // Initialize DB object
 const db = {};
