@@ -2,10 +2,8 @@ const { Sequelize, DataTypes } = require('sequelize');
 const env = process.env.NODE_ENV || 'development';
 const config = require('../config/database')[env];
 
-// Check if production
 const isProduction = env === 'production';
 
-// Initialize Sequelize
 const sequelize = new Sequelize(
   config.database,
   config.username,
@@ -17,14 +15,14 @@ const sequelize = new Sequelize(
     logging: config.logging,
     pool: config.pool,
 
-    // ✅ Only enable SSL in production (e.g., Railway)
-    dialectOptions: {
-  ssl: {
-    require: true,
-    rejectUnauthorized: false,
-  },
-},
-   
+    dialectOptions: isProduction
+      ? {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        }
+      : {},
   }
 );
 
@@ -40,7 +38,7 @@ db.Item = require('./Item')(sequelize, DataTypes);
 db.Order = require('./Order')(sequelize, DataTypes);
 db.OrderItem = require('./OrderItem')(sequelize, DataTypes);
 
-// Set associations
+// Associations
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate) {
     db[modelName].associate(db);
