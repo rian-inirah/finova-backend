@@ -1,3 +1,4 @@
+
 // controllers/reportsController.js
 const db = require('../models');
 const { Op, Sequelize } = require('sequelize');
@@ -17,7 +18,10 @@ const getOrderReports = async (req, res) => {
       status: 'completed',
       createdAt: { [Op.between]: [from.toDate(), to.toDate()] }
     };
-    if (paymentType && paymentType !== 'all') whereClause.paymentMethod = paymentType;
+
+    if (paymentType && paymentType !== 'all') {
+      whereClause.paymentMethod = paymentType;
+    }
 
     const offset = (page - 1) * limit;
 
@@ -27,7 +31,9 @@ const getOrderReports = async (req, res) => {
         {
           model: db.OrderItem,
           as: 'orderItems',
-          include: [{ model: db.Item, as: 'item', attributes: ['id', 'name', 'price'] }]
+          include: [
+            { model: db.Item, as: 'item', attributes: ['id', 'name', 'price'] }
+          ]
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -66,13 +72,22 @@ const getOrderReports = async (req, res) => {
         hasNext: offset + parseInt(limit) < orders.count,
         hasPrev: page > 1
       },
-      summary: summary[0] || { totalOrders: 0, totalAmount: 0, totalGST: 0, totalSubtotal: 0 },
+      summary: summary[0] || {
+        totalOrders: 0,
+        totalAmount: 0,
+        totalGST: 0,
+        totalSubtotal: 0
+      },
       paymentBreakdown,
-      dateRange: { from: from.format('YYYY-MM-DD'), to: to.format('YYYY-MM-DD') }
+      dateRange: {
+        from: from.format('YYYY-MM-DD'),
+        to: to.format('YYYY-MM-DD')
+      }
     });
+
   } catch (error) {
     console.error('Get order reports error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -82,10 +97,10 @@ const getOrderReports = async (req, res) => {
 const getItemReports = async (req, res) => {
   try {
     const { fromDate, toDate, itemId, page = 1, limit = 50 } = req.query;
+
     const from = fromDate ? moment(fromDate).startOf('day') : moment().startOf('day');
     const to = toDate ? moment(toDate).endOf('day') : moment().endOf('day');
 
-    // Fetch grouped item reports
     const itemReports = await db.OrderItem.findAll({
       attributes: [
         'itemId',
@@ -108,21 +123,25 @@ const getItemReports = async (req, res) => {
           where: {
             userId: req.user.id,
             status: 'completed',
-            createdAt: { [Op.between]: [from.toDate(), to.toDate()] }
+            createdAt: {
+              [Op.between]: [from.toDate(), to.toDate()]
+            }
           }
         }
       ],
       group: ['itemId', 'item.id', 'item.name'],
-      order: [[Sequelize.literal('totalQuantity'), 'DESC']],
+
+      // ✅ FIXED HERE
+      order: [[Sequelize.literal('"totalQuantity"'), 'DESC']],
+
       raw: false
     });
 
-    // Manual pagination
     const totalCount = itemReports.length;
     const offset = (page - 1) * limit;
-    const paginatedReports = itemReports.slice(offset, offset + limit);
 
-    // Format data for response
+    const paginatedReports = itemReports.slice(offset, offset + parseInt(limit));
+
     const formattedReports = paginatedReports.map(row => ({
       itemId: row.item.id,
       itemName: row.item.name,
@@ -137,7 +156,11 @@ const getItemReports = async (req, res) => {
 
     res.json({
       itemReports: formattedReports,
-      summary: { totalItems: formattedReports.length, totalQuantity, totalAmount },
+      summary: {
+        totalItems: formattedReports.length,
+        totalQuantity,
+        totalAmount
+      },
       pagination: {
         totalCount,
         currentPage: parseInt(page),
@@ -145,11 +168,15 @@ const getItemReports = async (req, res) => {
         hasNext: offset + parseInt(limit) < totalCount,
         hasPrev: page > 1
       },
-      dateRange: { from: from.format('YYYY-MM-DD'), to: to.format('YYYY-MM-DD') }
+      dateRange: {
+        from: from.format('YYYY-MM-DD'),
+        to: to.format('YYYY-MM-DD')
+      }
     });
+
   } catch (error) {
     console.error('Get item reports error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -159,17 +186,24 @@ const getItemReports = async (req, res) => {
 const getDailyReports = async (req, res) => {
   try {
     const { fromDate, toDate, groupBy = 'day' } = req.query;
+
     const from = fromDate ? moment(fromDate) : moment().subtract(30, 'days');
     const to = toDate ? moment(toDate) : moment();
 
     const whereClause = {
       userId: req.user.id,
       status: 'completed',
-      createdAt: { [Op.between]: [from.startOf('day').toDate(), to.endOf('day').toDate()] }
+      createdAt: {
+        [Op.between]: [
+          from.startOf('day').toDate(),
+          to.endOf('day').toDate()
+        ]
+      }
     };
 
-    const dateFormat = groupBy === 'week' ? '%Y-%u' :
-                       groupBy === 'month' ? '%Y-%m' : '%Y-%m-%d';
+    const dateFormat =
+      groupBy === 'week' ? '%Y-%u' :
+      groupBy === 'month' ? '%Y-%m' : '%Y-%m-%d';
 
     const dailyReports = await db.Order.findAll({
       where: whereClause,
@@ -188,13 +222,16 @@ const getDailyReports = async (req, res) => {
 
     res.json({
       dailyReports,
-      dateRange: { from: from.format('YYYY-MM-DD'), to: to.format('YYYY-MM-DD') },
+      dateRange: {
+        from: from.format('YYYY-MM-DD'),
+        to: to.format('YYYY-MM-DD')
+      },
       groupBy
     });
 
   } catch (error) {
     console.error('Get daily reports error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -204,8 +241,14 @@ const getDailyReports = async (req, res) => {
 const getTopSellingItems = async (req, res) => {
   try {
     const { fromDate, toDate, limit = 10 } = req.query;
-    const from = fromDate ? moment(fromDate).startOf('day') : moment().subtract(30, 'days').startOf('day');
-    const to = toDate ? moment(toDate).endOf('day') : moment().endOf('day');
+
+    const from = fromDate
+      ? moment(fromDate).startOf('day')
+      : moment().subtract(30, 'days').startOf('day');
+
+    const to = toDate
+      ? moment(toDate).endOf('day')
+      : moment().endOf('day');
 
     const topItems = await db.OrderItem.findAll({
       attributes: [
@@ -214,15 +257,29 @@ const getTopSellingItems = async (req, res) => {
         [Sequelize.fn('SUM', Sequelize.col('totalPrice')), 'totalAmount']
       ],
       include: [
-        { model: db.Item, as: 'item', attributes: ['id', 'name'] },
-        { model: db.Order, as: 'order', attributes: [], where: { 
-          userId: req.user.id,
-          status: 'completed',
-          createdAt: { [Op.between]: [from.toDate(), to.toDate()] }
-        } }
+        {
+          model: db.Item,
+          as: 'item',
+          attributes: ['id', 'name']
+        },
+        {
+          model: db.Order,
+          as: 'order',
+          attributes: [],
+          where: {
+            userId: req.user.id,
+            status: 'completed',
+            createdAt: {
+              [Op.between]: [from.toDate(), to.toDate()]
+            }
+          }
+        }
       ],
       group: ['itemId', 'item.id', 'item.name'],
-      order: [[Sequelize.literal('totalQuantity'), 'DESC']],
+
+      // ✅ FIXED HERE ALSO
+      order: [[Sequelize.literal('"totalQuantity"'), 'DESC']],
+
       limit: parseInt(limit),
       raw: false,
       subQuery: false
@@ -237,12 +294,15 @@ const getTopSellingItems = async (req, res) => {
 
     res.json({
       topItems: formattedTopItems,
-      dateRange: { from: from.format('YYYY-MM-DD'), to: to.format('YYYY-MM-DD') }
+      dateRange: {
+        from: from.format('YYYY-MM-DD'),
+        to: to.format('YYYY-MM-DD')
+      }
     });
 
   } catch (error) {
     console.error('Get top selling items error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -252,3 +312,4 @@ module.exports = {
   getDailyReports,
   getTopSellingItems
 };
+
